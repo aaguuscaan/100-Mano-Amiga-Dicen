@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#071126">
+  <title>100 Mano Amiga Dicen — Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;600;700;800&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app" id="gameStage">
+    <header class="header">
+      <div>
+        <p class="eyebrow">ACTO · 17 DE AGOSTO</p>
+        <h1>100 <span>MANO AMIGA</span> DICEN</h1>
+      </div>
+      <div class="session-badge">SESIÓN <strong id="sessionName">acto-17-agosto</strong></div>
+    </header>
+
+    <section class="question-card">
+      <span class="question-label">PREGUNTA</span>
+      <h2 id="questionTitle">Conectando...</h2>
+    </section>
+
+    <section class="scoreboard">
+      <article class="team team-a active" id="teamA">
+        <span class="team-label" id="teamAName">Equipo A</span>
+        <strong id="teamAScore">0</strong>
+      </article>
+      <article class="pot-card">
+        <span>POZO</span>
+        <strong id="pot">0</strong>
+        <div class="strikes" id="strikes"></div>
+      </article>
+      <article class="team team-b" id="teamB">
+        <span class="team-label" id="teamBName">Equipo B</span>
+        <strong id="teamBScore">0</strong>
+      </article>
+    </section>
+
+    <section class="board" id="board"></section>
+
+    <section class="control-panel">
+      <div class="control-group">
+        <span class="control-title">Turno</span>
+        <button id="btnActiveA">Equipo A</button>
+        <button id="btnActiveB">Equipo B</button>
+      </div>
+      <div class="control-group">
+        <span class="control-title">Errores</span>
+        <button class="danger" id="btnStrike">X · Error</button>
+        <button id="btnClearStrikes">Limpiar</button>
+      </div>
+      <div class="control-group">
+        <span class="control-title">Pozo</span>
+        <button class="gold" id="btnAwardA">Dar a A</button>
+        <button class="gold" id="btnAwardB">Dar a B</button>
+      </div>
+      <div class="control-group">
+        <span class="control-title">Ronda</span>
+        <button id="btnPrevious">← Anterior</button>
+        <button id="btnNext">Siguiente →</button>
+        <button id="btnRevealAll">Revelar todo</button>
+        <button class="danger" id="btnResetRound">Reiniciar ronda</button>
+      </div>
+      <div class="control-group">
+        <span class="control-title">Partida</span>
+        <button id="btnResetScores">Reiniciar puntajes</button>
+        <button id="btnVictory">Victoria</button>
+        <button id="btnFullscreen">Pantalla completa</button>
+      </div>
+    </section>
+
+    <aside class="questions-panel">
+      <div>
+        <span class="control-title">Preguntas de Firestore</span>
+        <p>Elegí una pregunta para cargarla en la ronda.</p>
+      </div>
+      <div id="questionList" class="question-list"></div>
+    </aside>
+
+    <footer class="footer">
+      <span>1–8 revelar · X error · A/B dar pozo · N siguiente · P anterior · R ronda · S puntajes · F pantalla completa</span>
+      <span id="firebaseStatus">En vivo · Firestore onSnapshot()</span>
+    </footer>
+  </main>
+  <script type="module" src="app-control.js"></script>
+</body>
+</html>
