@@ -1,5 +1,6 @@
 import {
   db,
+  collection,
   doc,
   onSnapshot,
   setDoc
@@ -49,31 +50,17 @@ const SESSION_ID =
 
 
 // ======================================================
-// REFERENCIAS FIREBASE
+// FIREBASE
 // ======================================================
 
-// Estado de la partida:
-//
-// sessions
-// └── acto-17-agosto
-//
 const stateRef = doc(
   db,
   "sessions",
   SESSION_ID
 );
 
-
-// Pregunta:
-//
-// sessions
-// └── preguntas
-//     ├── titulo
-//     └── respuestas
-//
-const questionsRef = doc(
+const questionsRef = collection(
   db,
-  "sessions",
   "preguntas"
 );
 
@@ -92,7 +79,7 @@ let unsubscribeQuestions = null;
 
 
 // ======================================================
-// HELPER DOM
+// DOM
 // ======================================================
 
 const $ = id =>
@@ -135,6 +122,7 @@ function emptyState() {
     status: "ready",
 
     updatedAt: Date.now()
+
   };
 }
 
@@ -145,18 +133,43 @@ function emptyState() {
 
 async function writeState(next) {
 
-  next.pot =
+  if (!next) {
+    return;
+  }
+
+  const stateToWrite =
+    cloneState(next);
+
+  stateToWrite.pot =
     calculatePot(
-      next.answers || []
+      stateToWrite.answers || []
     );
 
-  next.updatedAt =
+  stateToWrite.updatedAt =
     Date.now();
 
-  await setDoc(
-    stateRef,
-    next
-  );
+  try {
+
+    await setDoc(
+      stateRef,
+      stateToWrite
+    );
+
+    console.log(
+      "💾 Estado guardado:",
+      stateToWrite
+    );
+
+    setFirebaseStatus(
+      `🟢 En vivo · ${questions.length} preguntas`,
+      "success"
+    );
+
+  } catch (error) {
+
+    showError(error);
+
+  }
 }
 
 
@@ -166,9 +179,9 @@ async function writeState(next) {
 
 function subscribe() {
 
-  // ==================================================
+  // ====================================================
   // ESTADO DE LA PARTIDA
-  // ==================================================
+  // ====================================================
 
   unsubscribeState =
     onSnapshot(
@@ -184,15 +197,25 @@ function subscribe() {
             state =
               snap.data();
 
+            console.log(
+              "🎮 Estado recibido desde Firestore:",
+              state
+            );
+
           } else {
 
             state =
               emptyState();
 
+            console.log(
+              "🆕 Creando estado inicial..."
+            );
+
             await setDoc(
               stateRef,
               state
             );
+
           }
 
           render();
@@ -200,114 +223,85 @@ function subscribe() {
         } catch (error) {
 
           showError(error);
+
         }
+
       },
 
-      showError
+      error => {
+
+        showError(error);
+
+      }
+
     );
 
 
-  // ==================================================
-  // PREGUNTA
-  // ==================================================
+  // ====================================================
+  // PREGUNTAS
+  // ====================================================
 
   unsubscribeQuestions =
     onSnapshot(
 
       questionsRef,
 
-      snap => {
+      async snap => {
 
         try {
 
-          console.log(
-            "Documento sessions/preguntas:",
-            snap.exists()
-          );
+          questions =
+            snap.docs.map(
+              questionDoc => ({
 
+                id:
+                  questionDoc.id,
 
-          // ------------------------------------------
-          // DOCUMENTO NO EXISTE
-          // ------------------------------------------
+                ...questionDoc.data()
 
-          if (!snap.exists()) {
-
-            questions = [];
-
-
-            setFirebaseStatus(
-              "❌ No existe el documento sessions/preguntas",
-              "error"
+              })
             );
 
 
-            renderQuestionList(
-              [],
-              0,
-              selectQuestion
-            );
+          // --------------------------------------------
+          // ORDENAR PREGUNTAS
+          // --------------------------------------------
 
+          questions.sort(
+            (a, b) => {
 
-            return;
-          }
+              const numberA =
+                Number(
+                  String(a.id)
+                    .replace(/^p/, "")
+                );
 
+              const numberB =
+                Number(
+                  String(b.id)
+                    .replace(/^p/, "")
+                );
 
-          // ------------------------------------------
-          // DATOS DEL DOCUMENTO
-          // ------------------------------------------
+              return numberA - numberB;
 
-          const data =
-            snap.data();
-
-
-          console.log(
-            "Datos de preguntas:",
-            data
-          );
-
-
-          // ------------------------------------------
-          // CONSTRUIR PREGUNTA
-          // ------------------------------------------
-
-          questions = [
-
-            {
-              id: "preguntas",
-
-              titulo:
-                data.titulo || "",
-
-              respuestas:
-                Array.isArray(
-                  data.respuestas
-                )
-                  ? data.respuestas
-                  : []
             }
-
-          ];
+          );
 
 
           console.log(
-            "Preguntas cargadas:",
+            "🔥 PREGUNTAS RECIBIDAS:",
             questions
           );
 
-
-          // ------------------------------------------
-          // STATUS
-          // ------------------------------------------
-
-          setFirebaseStatus(
-            "🟢 1 pregunta cargada",
-            "ok"
+          console.log(
+            "📊 TOTAL DE PREGUNTAS:",
+            questions.length
           );
 
 
-          // ------------------------------------------
+          // --------------------------------------------
           // MOSTRAR LISTA
-          // ------------------------------------------
+          // --------------------------------------------
 
           renderQuestionList(
 
@@ -316,32 +310,73 @@ function subscribe() {
             state?.questionIndex ?? 0,
 
             selectQuestion
+
           );
 
 
-          // ------------------------------------------
-          // CARGAR AUTOMÁTICAMENTE
-          // ------------------------------------------
+          // --------------------------------------------
+          // SI NO HAY PREGUNTA ACTIVA
+          // --------------------------------------------
 
           if (
+
             state &&
-            !state.questionId
+
+            !state.questionId &&
+
+            questions.length > 0
+
           ) {
 
-            selectQuestion(
+            console.log(
+              "🚀 No hay pregunta activa."
+            );
+
+            console.log(
+              "🚀 Cargando la primera pregunta:",
+              questions[0]
+            );
+
+
+            await selectQuestion(
               0,
               true
             );
+
           }
+
+
+          // --------------------------------------------
+          // ACTUALIZAR ESTADO VISUAL
+          // --------------------------------------------
+
+          setFirebaseStatus(
+
+            `🟢 En vivo · ${questions.length} preguntas`,
+
+            "success"
+
+          );
+
+
+          render();
 
         } catch (error) {
 
           showError(error);
+
         }
+
       },
 
-      showError
+      error => {
+
+        showError(error);
+
+      }
+
     );
+
 }
 
 
@@ -351,11 +386,30 @@ function subscribe() {
 
 function render() {
 
+  if (!state) {
+    return;
+  }
+
+
+  console.log(
+    "🎨 RENDERIZANDO:",
+    {
+      questionId: state.questionId,
+      questionIndex: state.questionIndex,
+      questionTitle: state.questionTitle,
+      answers: state.answers
+    }
+  );
+
+
   renderSharedState(
+
     state,
+
     {
       displayOnly: false
     }
+
   );
 
 
@@ -363,9 +417,10 @@ function render() {
 
     questions,
 
-    state?.questionIndex ?? 0,
+    state.questionIndex ?? 0,
 
     selectQuestion
+
   );
 
 
@@ -377,7 +432,9 @@ function render() {
 
     sessionName.textContent =
       SESSION_ID;
+
   }
+
 }
 
 
@@ -390,20 +447,79 @@ async function selectQuestion(
   silent = false
 ) {
 
+  console.log(
+    "===================================="
+  );
+
+  console.log(
+    "🎯 SELECCIONANDO PREGUNTA"
+  );
+
+  console.log(
+    "ÍNDICE:",
+    index
+  );
+
+  console.log(
+    "TOTAL:",
+    questions.length
+  );
+
+
   if (!questions[index]) {
+
+    console.error(
+      "❌ No existe la pregunta:",
+      index
+    );
+
     return;
+
   }
+
+
+  const question =
+    questions[index];
+
+
+  console.log(
+    "📋 PREGUNTA SELECCIONADA:",
+    question
+  );
+
+
+  console.log(
+    "🆔 ID:",
+    question.id
+  );
+
+  console.log(
+    "❓ TÍTULO:",
+    question.titulo
+  );
+
+  console.log(
+    "💬 RESPUESTAS:",
+    question.respuestas
+  );
 
 
   const next =
     stateFromQuestion(
 
-      questions[index],
+      question,
 
       index,
 
       state
+
     );
+
+
+  console.log(
+    "📝 NUEVO ESTADO:",
+    next
+  );
 
 
   await writeState(
@@ -414,7 +530,9 @@ async function selectQuestion(
   if (!silent) {
 
     playTurn();
+
   }
+
 }
 
 
@@ -425,12 +543,22 @@ async function selectQuestion(
 async function reveal(index) {
 
   if (
+
     !state ||
+
     !state.answers ||
+
     !state.answers[index]
+
   ) {
 
+    console.warn(
+      "⚠️ No se puede revelar:",
+      index
+    );
+
     return;
+
   }
 
 
@@ -440,8 +568,11 @@ async function reveal(index) {
 
   const next =
     revealAnswer(
+
       state,
+
       index
+
     );
 
 
@@ -453,7 +584,9 @@ async function reveal(index) {
   if (!wasRevealed) {
 
     playReveal();
+
   }
+
 }
 
 
@@ -469,7 +602,9 @@ async function strike() {
 
 
   const next =
-    addStrike(state);
+    addStrike(
+      state
+    );
 
 
   await writeState(
@@ -487,7 +622,9 @@ async function strike() {
     celebrate(
       $("gameStage")
     );
+
   }
+
 }
 
 
@@ -509,14 +646,23 @@ async function award(team) {
 
 
   if (!amount) {
+
+    console.warn(
+      "⚠️ El pozo está vacío."
+    );
+
     return;
+
   }
 
 
   const next =
     awardPot(
+
       state,
+
       team
+
     );
 
 
@@ -531,6 +677,7 @@ async function award(team) {
   celebrate(
     $("gameStage")
   );
+
 }
 
 
@@ -546,12 +693,15 @@ async function resetCurrentRound() {
 
 
   const next =
-    resetRound(state);
+    resetRound(
+      state
+    );
 
 
   await writeState(
     next
   );
+
 }
 
 
@@ -567,12 +717,15 @@ async function resetAllScores() {
 
 
   const next =
-    resetScores(state);
+    resetScores(
+      state
+    );
 
 
   await writeState(
     next
   );
+
 }
 
 
@@ -583,24 +736,35 @@ async function resetAllScores() {
 async function goNext() {
 
   if (
+
     !state ||
+
     !questions.length
+
   ) {
 
     return;
+
   }
 
 
   const next =
     nextQuestion(
+
       state,
+
       questions
+
     );
 
 
   await writeState(
     next
   );
+
+
+  playTurn();
+
 }
 
 
@@ -611,24 +775,35 @@ async function goNext() {
 async function goPrevious() {
 
   if (
+
     !state ||
+
     !questions.length
+
   ) {
 
     return;
+
   }
 
 
   const next =
     previousQuestion(
+
       state,
+
       questions
+
     );
 
 
   await writeState(
     next
   );
+
+
+  playTurn();
+
 }
 
 
@@ -645,8 +820,11 @@ async function setTeam(team) {
 
   const next =
     setActiveTeam(
+
       state,
+
       team
+
     );
 
 
@@ -656,6 +834,7 @@ async function setTeam(team) {
 
 
   playTurn();
+
 }
 
 
@@ -671,12 +850,18 @@ async function revealEverything() {
 
 
   const next =
-    revealAll(state);
+    revealAll(
+      state
+    );
 
 
   await writeState(
     next
   );
+
+
+  playReveal();
+
 }
 
 
@@ -700,9 +885,18 @@ async function fullscreen() {
 
       await document
         .exitFullscreen();
+
     }
 
-  } catch (_) {}
+  } catch (error) {
+
+    console.warn(
+      "No se pudo cambiar fullscreen:",
+      error
+    );
+
+  }
+
 }
 
 
@@ -730,6 +924,7 @@ function setFirebaseStatus(
 
   box.dataset.status =
     type;
+
 }
 
 
@@ -740,7 +935,7 @@ function setFirebaseStatus(
 function showError(error) {
 
   console.error(
-    "Firebase error:",
+    "🔥 FIREBASE ERROR:",
     error
   );
 
@@ -755,35 +950,39 @@ function showError(error) {
 
 
   if (
-    code ===
-    "permission-denied"
+    code === "permission-denied"
   ) {
 
     message =
       "FIREBASE: permiso denegado. Las reglas de Firestore no permiten leer/escribir.";
 
-  } else if (
-    code ===
-    "failed-precondition"
+  }
+
+  else if (
+    code === "failed-precondition"
   ) {
 
     message =
-      "FIREBASE: Firestore no está habilitado o falta una configuración del proyecto.";
+      "FIREBASE: Firestore no está habilitado o falta configuración.";
 
-  } else if (
-    code ===
-    "unavailable"
+  }
+
+  else if (
+    code === "unavailable"
   ) {
 
     message =
-      "FIREBASE: servicio no disponible. Revisá la conexión a Internet.";
+      "FIREBASE: servicio no disponible. Revisá Internet.";
 
-  } else if (
+  }
+
+  else if (
     error?.message
   ) {
 
     message +=
       ` — ${error.message}`;
+
   }
 
 
@@ -791,6 +990,7 @@ function showError(error) {
     message,
     "error"
   );
+
 }
 
 
@@ -800,203 +1000,293 @@ function showError(error) {
 
 function bind() {
 
+  // ====================================================
+  // RESPUESTAS
+  // ====================================================
+
   const board =
     $("board");
 
 
   if (board) {
 
-const board = $("board");
+    board.addEventListener(
+      "click",
+      event => {
 
-if (board) {
+        const slot =
+          event.target.closest(
+            ".answer-slot"
+          );
 
-  board.addEventListener(
-    "click",
-    event => {
 
-      const slot =
-        event.target.closest(
-          ".answer-slot"
+        if (!slot) {
+          return;
+        }
+
+
+        const index =
+          Number(
+            slot.dataset.index
+          );
+
+
+        if (
+          !Number.isInteger(index)
+        ) {
+
+          return;
+
+        }
+
+
+        console.log(
+          "🎯 Click respuesta:",
+          index
         );
 
-      if (!slot) return;
 
+        reveal(index);
 
-      const index =
-        Number(
-          slot.dataset.index
-        );
-
-
-      if (
-        !Number.isInteger(index)
-      ) {
-        return;
       }
+    );
+
+  }
 
 
-      console.log(
-        "Revelando respuesta:",
-        index + 1,
-        "índice real:",
-        index
-      );
-
-
-      reveal(index);
-    }
-  );
-}
-}
-
+  // ====================================================
+  // STRIKE
+  // ====================================================
 
   const btnStrike =
     $("btnStrike");
+
 
   if (btnStrike) {
 
     btnStrike.onclick =
       strike;
+
   }
 
+
+  // ====================================================
+  // LIMPIAR STRIKES
+  // ====================================================
 
   const btnClearStrikes =
     $("btnClearStrikes");
 
+
   if (btnClearStrikes) {
 
     btnClearStrikes.onclick =
-      () => {
+      async () => {
 
         if (!state) {
           return;
         }
 
 
-        writeState({
+        const next =
+          cloneState(state);
 
-          ...cloneState(state),
 
-          strikes: 0
-        });
+        next.strikes = 0;
+
+
+        await writeState(
+          next
+        );
+
       };
+
   }
 
 
+  // ====================================================
+  // EQUIPO A
+  // ====================================================
+
   const btnActiveA =
     $("btnActiveA");
+
 
   if (btnActiveA) {
 
     btnActiveA.onclick =
       () => setTeam("A");
+
   }
 
 
+  // ====================================================
+  // EQUIPO B
+  // ====================================================
+
   const btnActiveB =
     $("btnActiveB");
+
 
   if (btnActiveB) {
 
     btnActiveB.onclick =
       () => setTeam("B");
+
   }
 
 
+  // ====================================================
+  // POZO A
+  // ====================================================
+
   const btnAwardA =
     $("btnAwardA");
+
 
   if (btnAwardA) {
 
     btnAwardA.onclick =
       () => award("A");
+
   }
 
 
+  // ====================================================
+  // POZO B
+  // ====================================================
+
   const btnAwardB =
     $("btnAwardB");
+
 
   if (btnAwardB) {
 
     btnAwardB.onclick =
       () => award("B");
+
   }
 
 
+  // ====================================================
+  // REVELAR TODO
+  // ====================================================
+
   const btnRevealAll =
     $("btnRevealAll");
+
 
   if (btnRevealAll) {
 
     btnRevealAll.onclick =
       revealEverything;
+
   }
 
 
+  // ====================================================
+  // SIGUIENTE
+  // ====================================================
+
   const btnNext =
     $("btnNext");
+
 
   if (btnNext) {
 
     btnNext.onclick =
       goNext;
+
   }
 
 
+  // ====================================================
+  // ANTERIOR
+  // ====================================================
+
   const btnPrevious =
     $("btnPrevious");
+
 
   if (btnPrevious) {
 
     btnPrevious.onclick =
       goPrevious;
+
   }
 
 
+  // ====================================================
+  // REINICIAR RONDA
+  // ====================================================
+
   const btnResetRound =
     $("btnResetRound");
+
 
   if (btnResetRound) {
 
     btnResetRound.onclick =
       resetCurrentRound;
+
   }
 
 
+  // ====================================================
+  // REINICIAR PUNTAJES
+  // ====================================================
+
   const btnResetScores =
     $("btnResetScores");
+
 
   if (btnResetScores) {
 
     btnResetScores.onclick =
       resetAllScores;
+
   }
 
 
+  // ====================================================
+  // FULLSCREEN
+  // ====================================================
+
   const btnFullscreen =
     $("btnFullscreen");
+
 
   if (btnFullscreen) {
 
     btnFullscreen.onclick =
       fullscreen;
+
   }
 
+
+  // ====================================================
+  // VICTORIA
+  // ====================================================
 
   const btnVictory =
     $("btnVictory");
 
+
   if (btnVictory) {
 
-    btnVictory.onclick = () => {
+    btnVictory.onclick =
+      () => {
 
-      playWin();
+        playWin();
 
-      celebrate(
-        $("gameStage")
-      );
-    };
+        celebrate(
+          $("gameStage")
+        );
+
+      };
+
   }
+
 }
 
 
@@ -1029,6 +1319,7 @@ initKeyboard({
     resetAllScores,
 
   fullscreen
+
 });
 
 

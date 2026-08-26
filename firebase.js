@@ -12,6 +12,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
+
 const firebaseConfig = {
   apiKey: "AIzaSyDhy9gH6Nr33TKQYKhb4u5vBCPQmiJlyfI",
   authDomain: "mano-amiga-dicen.firebaseapp.com",
@@ -21,9 +22,14 @@ const firebaseConfig = {
   appId: "1:116233416032:web:ecc0f804d06d4bc620c205"
 };
 
-const app = initializeApp(firebaseConfig);
 
-export const db = getFirestore(app);
+const app =
+  initializeApp(firebaseConfig);
+
+
+export const db =
+  getFirestore(app);
+
 
 export {
   collection,

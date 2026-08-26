@@ -19,15 +19,13 @@ const $ = id =>
 // SET TEXT
 // ======================================================
 
-export function setText(
-  id,
-  value
-) {
+export function setText(id, value) {
 
-  const element =
-    $(id);
+  const element = $(id);
 
-  if (!element) return;
+  if (!element) {
+    return;
+  }
 
   element.textContent =
     value ?? "";
@@ -45,7 +43,15 @@ export function renderSharedState(
   } = {}
 ) {
 
-  if (!state) return;
+  if (!state) {
+    return;
+  }
+
+
+  console.log(
+    "🎨 UI recibió estado:",
+    state
+  );
 
 
   // ==================================================
@@ -60,7 +66,7 @@ export function renderSharedState(
 
 
   // ==================================================
-  // EQUIPOS
+  // EQUIPO A
   // ==================================================
 
   setText(
@@ -71,17 +77,21 @@ export function renderSharedState(
 
 
   setText(
-    "teamBName",
-    state.teamB?.name ||
-      "Equipo B"
-  );
-
-
-  setText(
     "teamAScore",
     Number(
       state.teamA?.score || 0
     ).toLocaleString("es-AR")
+  );
+
+
+  // ==================================================
+  // EQUIPO B
+  // ==================================================
+
+  setText(
+    "teamBName",
+    state.teamB?.name ||
+      "Equipo B"
   );
 
 
@@ -99,7 +109,9 @@ export function renderSharedState(
 
   const pot =
     calculatePot(
-      state.answers || []
+      Array.isArray(state.answers)
+        ? state.answers
+        : []
     );
 
 
@@ -126,6 +138,7 @@ export function renderSharedState(
       "active",
       state.activeTeam === "A"
     );
+
   }
 
 
@@ -135,11 +148,12 @@ export function renderSharedState(
       "active",
       state.activeTeam === "B"
     );
+
   }
 
 
   // ==================================================
-  // ERRORES
+  // STRIKES
   // ==================================================
 
   const strikes =
@@ -152,8 +166,12 @@ export function renderSharedState(
 
 
     const totalStrikes =
-      Number(
-        state.strikes || 0
+      Math.max(
+        0,
+        Math.min(
+          3,
+          Number(state.strikes || 0)
+        )
       );
 
 
@@ -164,15 +182,18 @@ export function renderSharedState(
     ) {
 
       const item =
-        document.createElement("span");
+        document.createElement(
+          "span"
+        );
 
 
       item.className =
-        `strike ${
+        "strike" +
+        (
           i < totalStrikes
-            ? "on"
+            ? " on"
             : ""
-        }`;
+        );
 
 
       item.textContent =
@@ -182,7 +203,9 @@ export function renderSharedState(
       strikes.appendChild(
         item
       );
+
     }
+
   }
 
 
@@ -194,22 +217,40 @@ export function renderSharedState(
     $("board");
 
 
-  if (!board) return;
+  if (!board) {
 
+    console.warn(
+      "⚠️ No existe #board"
+    );
+
+    return;
+
+  }
+
+
+  // Limpiar tablero anterior
 
   board.innerHTML = "";
 
 
+  // ==================================================
+  // RESPUESTAS
+  // ==================================================
+
   const answers =
-    Array.isArray(
-      state.answers
-    )
+    Array.isArray(state.answers)
       ? state.answers
       : [];
 
 
+  console.log(
+    "📦 UI renderizando respuestas:",
+    answers
+  );
+
+
   // ==================================================
-  // CREAR RESPUESTAS
+  // CREAR CADA RESPUESTA
   // ==================================================
 
   answers.forEach(
@@ -222,67 +263,55 @@ export function renderSharedState(
 
 
       // ----------------------------------------------
-      // CLASES
+      // CLASE PRINCIPAL
       // ----------------------------------------------
 
       slot.className =
         "answer-slot";
 
 
+      // ----------------------------------------------
+      // REVELADA
+      // ----------------------------------------------
+
       if (
-        answer?.revelada
+        answer &&
+        answer.revelada === true
       ) {
 
         slot.classList.add(
           "revealed"
         );
+
       }
 
 
       // ----------------------------------------------
-      // ÍNDICE REAL
-      // ----------------------------------------------
-      //
-      // MUY IMPORTANTE:
-      //
-      // El índice que usamos acá es EXACTAMENTE
-      // el índice del array state.answers.
-      //
-      // 0 = respuesta 1
-      // 1 = respuesta 2
-      // 2 = respuesta 3
-      // 3 = respuesta 4
-      // 4 = respuesta 5
-      //
+      // ÍNDICE
       // ----------------------------------------------
 
       slot.dataset.index =
         String(index);
 
 
-      // ----------------------------------------------
-      // IDENTIFICADOR VISUAL
-      // ----------------------------------------------
-
       slot.dataset.answerNumber =
         String(index + 1);
 
 
       // ----------------------------------------------
-      // SEGURIDAD DE CLICK
+      // Z-INDEX
       // ----------------------------------------------
 
       slot.style.position =
         "relative";
 
-
       slot.style.zIndex =
         String(100 + index);
 
 
-      // ----------------------------------------------
-      // CONTENIDO
-      // ----------------------------------------------
+      // =================================================
+      // CONTENEDOR
+      // =================================================
 
       const inner =
         document.createElement(
@@ -294,9 +323,9 @@ export function renderSharedState(
         "answer-inner";
 
 
-      // ----------------------------------------------
-      // CARA DELANTERA
-      // ----------------------------------------------
+      // =================================================
+      // FRENTE
+      // =================================================
 
       const front =
         document.createElement(
@@ -307,6 +336,8 @@ export function renderSharedState(
       front.className =
         "answer-face answer-front";
 
+
+      // Número
 
       const number =
         document.createElement(
@@ -321,6 +352,8 @@ export function renderSharedState(
       number.textContent =
         String(index + 1);
 
+
+      // Texto RESPUESTA
 
       const cover =
         document.createElement(
@@ -346,9 +379,9 @@ export function renderSharedState(
       );
 
 
-      // ----------------------------------------------
-      // CARA TRASERA
-      // ----------------------------------------------
+      // =================================================
+      // ATRÁS
+      // =================================================
 
       const back =
         document.createElement(
@@ -360,6 +393,10 @@ export function renderSharedState(
         "answer-face answer-back";
 
 
+      // -----------------------------------------------
+      // TEXTO REAL DE FIRESTORE
+      // -----------------------------------------------
+
       const text =
         document.createElement(
           "span"
@@ -370,9 +407,23 @@ export function renderSharedState(
         "answer-text";
 
 
-      text.textContent =
+      const answerText =
         answer?.texto ?? "";
 
+
+      console.log(
+        `💬 Respuesta ${index + 1}:`,
+        answerText
+      );
+
+
+      text.textContent =
+        String(answerText);
+
+
+      // -----------------------------------------------
+      // PUNTOS
+      // -----------------------------------------------
 
       const points =
         document.createElement(
@@ -380,63 +431,71 @@ export function renderSharedState(
         );
 
 
-      points.textContent =
-        String(
-          Number(
-            answer?.puntos || 0
-          )
+      const answerPoints =
+        Number(
+          answer?.puntos || 0
         );
 
+
+      points.textContent =
+        String(answerPoints);
+
+
+      // -----------------------------------------------
+      // ARMAR BACK
+      // -----------------------------------------------
 
       back.appendChild(
         text
       );
-
 
       back.appendChild(
         points
       );
 
 
-      // ----------------------------------------------
-      // ARMAR CARTA
-      // ----------------------------------------------
+      // -----------------------------------------------
+      // ARMAR INNER
+      // -----------------------------------------------
 
       inner.appendChild(
         front
       );
-
 
       inner.appendChild(
         back
       );
 
 
+      // -----------------------------------------------
+      // ARMAR SLOT
+      // -----------------------------------------------
+
       slot.appendChild(
         inner
       );
 
 
-      // ----------------------------------------------
-      // TOOLTIP CONTROL
-      // ----------------------------------------------
+      // -----------------------------------------------
+      // TOOLTIP
+      // -----------------------------------------------
 
       if (!displayOnly) {
 
         slot.title =
-          `Revelar respuesta ${
-            index + 1
-          }`;
+          `Revelar respuesta ${index + 1}`;
+
       }
 
 
-      // ----------------------------------------------
-      // AGREGAR AL TABLERO
-      // ----------------------------------------------
+      // -----------------------------------------------
+      // TABLERO
+      // -----------------------------------------------
 
       board.appendChild(
         slot
       );
+
     }
   );
 
@@ -449,6 +508,7 @@ export function renderSharedState(
     "display-only",
     displayOnly
   );
+
 }
 
 
@@ -466,10 +526,17 @@ export function renderQuestionList(
     $("questionList");
 
 
-  if (!list) return;
+  if (!list) {
+    return;
+  }
 
 
   list.innerHTML = "";
+
+
+  if (!Array.isArray(questions)) {
+    return;
+  }
 
 
   questions.forEach(
@@ -482,16 +549,17 @@ export function renderQuestionList(
 
 
       button.className =
-        `question-item ${
+        "question-item" +
+        (
           index === currentIndex
-            ? "selected"
+            ? " selected"
             : ""
-        }`;
+        );
 
 
       button.textContent =
         `${index + 1}. ${
-          question.titulo
+          question?.titulo || "Sin pregunta"
         }`;
 
 
@@ -499,7 +567,15 @@ export function renderQuestionList(
         "click",
         () => {
 
+          console.log(
+            "🖱️ Pregunta elegida:",
+            index,
+            question
+          );
+
+
           onSelect(index);
+
         }
       );
 
@@ -507,6 +583,8 @@ export function renderQuestionList(
       list.appendChild(
         button
       );
+
     }
   );
+
 }

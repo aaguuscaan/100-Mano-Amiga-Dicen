@@ -1,0 +1,24 @@
+{
+  "dependencies": {
+    "firebase": "^12.18.0"
+  },
+  "name": "100-mano-amiga-dicen",
+  "version": "1.0.0",
+  "description": "Versión modular con Firebase Firestore y sincronización en tiempo real mediante `onSnapshot()`.",
+  "main": "animations.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aaguuscaan/100-Mano-Amiga-Dicen.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/aaguuscaan/100-Mano-Amiga-Dicen/issues"
+  },
+  "homepage": "https://github.com/aaguuscaan/100-Mano-Amiga-Dicen#readme"
+}
